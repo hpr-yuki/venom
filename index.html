@@ -1,90 +1,502 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Progate</title>
-  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
-  <link rel="stylesheet" type="text/css" href="stylesheet.css">
+<meta charset="UTF-8">
+<title>夜市すいかゲーム</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<style>
+  :root{
+    --night-deep:#0d1530;
+    --night-mid:#1b2a4a;
+    --lantern:#f4a94d;
+    --lantern-glow:#ffce7a;
+    --wood-dark:#5a3a24;
+    --wood-mid:#8b5e3c;
+    --wood-light:#c98f5e;
+    --paper:#fbeed6;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; height:100%;
+    background: radial-gradient(ellipse at 50% -10%, #24345f 0%, var(--night-deep) 60%, #060a18 100%);
+    font-family:'Zen Maru Gothic', sans-serif;
+    color:var(--paper);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .stars{position:fixed; inset:0; pointer-events:none;}
+  .star{position:absolute; width:2px; height:2px; background:#fff; border-radius:50%; opacity:.5; animation: twinkle 3s ease-in-out infinite;}
+  @keyframes twinkle{0%,100%{opacity:.15;}50%{opacity:.8;}}
+
+  .stage{
+    position:relative;
+    display:flex; flex-direction:column; align-items:center;
+    gap:10px;
+    padding:14px;
+  }
+  h1{
+    font-family:'Kaisei Decol', serif;
+    font-size:28px; letter-spacing:.12em; margin:0;
+    color:var(--lantern-glow);
+    text-shadow: 0 0 14px rgba(244,169,77,.55), 0 2px 0 rgba(0,0,0,.4);
+  }
+  .subtitle{
+    font-size:11px; letter-spacing:.25em; color:#a9b6d6; margin-top:-6px;
+  }
+
+  .hud{
+    width:100%; max-width:520px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 4px;
+  }
+  .score-box{
+    background:linear-gradient(180deg, #2a3a63, #1b2747);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:10px;
+    padding:6px 14px;
+    text-align:center;
+    min-width:96px;
+  }
+  .score-box .label{font-size:10px; letter-spacing:.2em; color:#8fa1cc;}
+  .score-box .value{font-size:20px; font-weight:900; color:#fff;}
+
+  .lantern-preview{
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .lantern-preview .tag{font-size:10px; color:#8fa1cc; letter-spacing:.2em;}
+  .lantern{
+    width:52px; height:60px;
+    border-radius:50% 50% 45% 45%;
+    background: radial-gradient(circle at 35% 30%, var(--lantern-glow), var(--lantern) 70%);
+    box-shadow: 0 0 18px 4px rgba(244,169,77,.55), inset 0 -6px 10px rgba(0,0,0,.15);
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px;
+    position:relative;
+  }
+  .lantern::before, .lantern::after{
+    content:''; position:absolute; left:50%; transform:translateX(-50%);
+    background:#3a2513; width:6px;
+  }
+  .lantern::before{ top:-8px; height:8px; border-radius:2px;}
+  .lantern::after{ bottom:-6px; height:6px; border-radius:2px;}
+
+  .crate-wrap{
+    position:relative;
+    border-radius:18px;
+    padding:16px 12px 20px;
+    background:
+      repeating-linear-gradient(90deg, var(--wood-mid) 0 22px, var(--wood-dark) 22px 24px);
+    box-shadow: 0 18px 40px rgba(0,0,0,.55), inset 0 0 0 4px var(--wood-dark);
+  }
+  .crate-wrap::before{
+    content:''; position:absolute; inset:6px;
+    border:3px solid var(--wood-light);
+    border-radius:12px; opacity:.35; pointer-events:none;
+  }
+  canvas{
+    display:block; border-radius:10px;
+    background: linear-gradient(180deg, #12193a 0%, #0b1024 85%);
+    touch-action:none;
+    cursor: pointer;
+  }
+
+  .footer-note{
+    font-size:11px; color:#8fa1cc; letter-spacing:.08em; text-align:center;
+    max-width:460px;
+  }
+
+  .overlay{
+    position:absolute; inset:0;
+    display:none; align-items:center; justify-content:center;
+    background: rgba(8,11,25,.72);
+    border-radius:10px;
+    backdrop-filter: blur(2px);
+    flex-direction:column; gap:14px;
+    text-align:center;
+    z-index:10;
+  }
+  .overlay.show{display:flex;}
+  .overlay h2{
+    font-family:'Kaisei Decol', serif;
+    color:var(--lantern-glow); font-size:26px; margin:0;
+    text-shadow:0 0 12px rgba(244,169,77,.6);
+  }
+  .overlay p{margin:0; color:#d7dfef; font-size:14px;}
+  .btn{
+    font-family:'Zen Maru Gothic', sans-serif; font-weight:700;
+    background: linear-gradient(180deg, var(--lantern-glow), var(--lantern));
+    color:#3a2513; border:none; padding:10px 26px; border-radius:24px;
+    font-size:14px; letter-spacing:.1em; cursor:pointer;
+    box-shadow:0 4px 0 #a9711f, 0 8px 14px rgba(0,0,0,.35);
+  }
+  .btn:active{ transform:translateY(3px); box-shadow:0 1px 0 #a9711f;}
+</style>
 </head>
 <body>
-  <header>
-    <div class="container">
-      <div class="header-left">
-        <img class="logo" src="https://prog-8.com/images/html/advanced/main_logo.png">
-      </div>
-      <span class="fa fa-bars menu-icon"></span>
-      <div class="header-right">
-        <a href="#">レッスン</a>
-        <a href="#">新規登録</a>
-        <a href="#" class="login">ログイン</a>
-      </div>
+
+<div class="stars" id="stars"></div>
+
+<div class="stage">
+  <h1>夜 市 す い か</h1>
+  <div class="subtitle">SAME FRUIT × SAME FRUIT = 進化</div>
+
+  <div class="hud">
+    <div class="score-box">
+      <div class="label">SCORE</div>
+      <div class="value" id="score">0</div>
     </div>
-  </header>
-  <div class="top-wrapper">
-    <div class="container">
-      <h1>LEARN TO CODE.<br>LEARN TO BE CREATIVE.</h1>
-      <p>Progateはオンラインプログラミング学習サービスです。<br>初心者にもやさしいスライドとレッスンで、ウェブサービスを作りながらプログラミングを学んでいきましょう。</p>
-      <div class="btn-wrapper">
-        <a href="#" class="btn signup">新規登録はこちら</a>
-        <p>or</p>
-        <a href="#" class="btn facebook"><span class="fa fa-facebook"></span>Facebookで登録</a>
-        <a href="#" class="btn twitter"><span class="fa fa-twitter"></span>Twitterで登録</a>
-      </div>
+    <div class="lantern-preview">
+      <div class="tag">つぎの実</div>
+      <div class="lantern" id="nextLantern">🍒</div>
+    </div>
+    <div class="score-box">
+      <div class="label">BEST</div>
+      <div class="value" id="best">0</div>
     </div>
   </div>
-  <div class="lesson-wrapper">
-    <div class="container">
-      <div class="heading">
-        <h2>Learn Where to Get Started!</h2>
-      </div>
-      <div class="lessons">
-        <div class="lesson">
-          <div class="lesson-icon">
-            <img src="https://prog-8.com/images/html/advanced/html.png">
-            <p>HTML & CSS</p>
-          </div>
-          <p class="text-contents">ウェブページの作成に使用される言語です。HTMLとCSSを組み合わせることで、静的なページを作り上げることができます。</p>
-        </div>
-        <div class="lesson">
-          <div class="lesson-icon">
-            <img src="https://prog-8.com/images/html/advanced/jQuery.png">
-            <p>jQuery</p>
-          </div>
-          <p class="text-contents">素敵な動きを手軽に実装できるJavaScriptライブラリです。 アニメーション効果をつけたり、Ajax（エイジャックス）を使って外部ファイルを読み込んだりと色々なことができます。</p>
-        </div>
-        <div class="lesson">
-          <div class="lesson-icon">
-            <img src="https://prog-8.com/images/html/advanced/ruby.png">
-            <p>Ruby</p>
-          </div>
-          <p class="text-contents">オープンソースの動的なプログラミング言語で、 シンプルさと高い生産性を備えています。大きなWebアプリケーションから小さな日用ツールまで、さまざまなソフトウェアを作ることができます。</p>
-        </div>
-        <div class="lesson">
-          <div class="lesson-icon">
-            <img src="https://prog-8.com/images/html/advanced/php.png">
-            <p>PHP</p>
-          </div>
-          <p class="text-contents">HTMLだけではページの内容を変えることはできません。PHPはHTMLにプログラムを埋め込み、それを可能にします。</p>
-        </div>
-      </div>
-      <div class="clear"></div>
+
+  <div class="crate-wrap">
+    <canvas id="world" width="480" height="640"></canvas>
+    <div class="overlay" id="overlay">
+      <h2 id="overlayTitle">GAME OVER</h2>
+      <p id="overlayText">屋台の実がこぼれてしまいました。</p>
+      <button class="btn" id="restartBtn">もう一度</button>
     </div>
   </div>
-  <div class="message-wrapper">
-    <div class="container">
-      <div class="heading">
-        <h2>さぁ、あなたもProgateでプログラミングを学んでみませんか?</h2>
-        <h3>Let's learn to code, learn to be creative!</h3>
-      </div>
-      <span class="btn message">さっそく開発する</span>
-    </div>
-  </div>
-  <footer>
-    <div class="container">
-      <img src="https://prog-8.com/images/html/advanced/footer_logo.png">
-      <p>Learn to Code, Learn to be Creative.</p>
-    </div>
-  </footer>
+  <div class="footer-note">タップ / クリックで実を落とす。同じ実同士がぶつかると次の大きさに進化します。すいかを作れるかな？</div>
+</div>
+
+<script>
+// ---------- ambient stars ----------
+const starsWrap = document.getElementById('stars');
+for(let i=0;i<60;i++){
+  const s = document.createElement('div');
+  s.className='star';
+  s.style.left = Math.random()*100+'vw';
+  s.style.top = Math.random()*60+'vh';
+  s.style.animationDelay = (Math.random()*3)+'s';
+  starsWrap.appendChild(s);
+}
+
+// ---------- matter.js setup ----------
+const { Engine, World, Bodies, Body, Composite, Events } = Matter;
+const engine = Engine.create();
+engine.gravity.y = 1.05;
+
+const canvas = document.getElementById('world');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const WALL_T = 18;
+
+const walls = [
+  Bodies.rectangle(W/2, H+WALL_T/2, W, WALL_T, {isStatic:true, label:'wall'}),
+  Bodies.rectangle(-WALL_T/2, H/2, WALL_T, H*2, {isStatic:true, label:'wall'}),
+  Bodies.rectangle(W+WALL_T/2, H/2, WALL_T, H*2, {isStatic:true, label:'wall'}),
+];
+World.add(engine.world, walls);
+
+// ---------- fruit levels ----------
+const LEVELS = [
+  {r:15, emoji:'🍒', color:'#e0455f', name:'さくらんぼ', score:1},
+  {r:20, emoji:'🍓', color:'#ff6b81', name:'いちご',     score:3},
+  {r:27, emoji:'🍇', color:'#9b6bd6', name:'ぶどう',     score:6},
+  {r:34, emoji:'🍊', color:'#ff9f43', name:'みかん',     score:10},
+  {r:43, emoji:'🍎', color:'#ff4757', name:'りんご',     score:15},
+  {r:53, emoji:'🍐', color:'#c3e88d', name:'なし',       score:21},
+  {r:64, emoji:'🍑', color:'#ffb8b8', name:'もも',       score:28},
+  {r:77, emoji:'🍈', color:'#a9d977', name:'メロン',     score:36},
+  {r:94, emoji:'🍉', color:'#2ecc71', name:'すいか',     score:50},
+];
+const MAX_LEVEL = LEVELS.length - 1;
+const SPAWNABLE = 4; // levels 0..4 can appear as "next fruit"
+
+let score = 0;
+let best = 0;
+let gameOver = false;
+let dropCooldown = false;
+let dangerTimer = 0;
+const GAME_OVER_LINE = 96;
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const nextLantern = document.getElementById('nextLantern');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlayTitle');
+const overlayText = document.getElementById('overlayText');
+
+// ---------- persistent best score via artifact storage ----------
+async function loadBest(){
+  try{
+    const res = await window.storage.get('suika_best_score', false);
+    best = res ? parseInt(res.value, 10) || 0 : 0;
+  }catch(e){ best = 0; }
+  bestEl.textContent = best;
+}
+async function saveBest(){
+  try{ await window.storage.set('suika_best_score', String(best), false); }catch(e){}
+}
+loadBest();
+
+// ---------- next fruit preview ----------
+let nextLevel = randSpawnLevel();
+function randSpawnLevel(){ return Math.floor(Math.random()*SPAWNABLE); }
+function refreshPreview(){ nextLantern.textContent = LEVELS[nextLevel].emoji; }
+refreshPreview();
+
+let previewX = W/2;
+
+function makeFruit(level, x, y){
+  const cfg = LEVELS[level];
+  const body = Bodies.circle(x, y, cfg.r, {
+    restitution:0.15,
+    friction:0.4,
+    frictionStatic:0.6,
+    density:0.0012,
+    label:'fruit'
+  });
+  body.plugin = { level, spawnTime: performance.now() };
+  return body;
+}
+
+function dropFruit(x){
+  if(gameOver || dropCooldown) return;
+  const cfg = LEVELS[nextLevel];
+  const clampedX = Math.max(cfg.r + WALL_T, Math.min(W - cfg.r - WALL_T, x));
+  const body = makeFruit(nextLevel, clampedX, cfg.r + 30);
+  World.add(engine.world, body);
+
+  nextLevel = randSpawnLevel();
+  refreshPreview();
+
+  dropCooldown = true;
+  setTimeout(()=>{ dropCooldown = false; }, 420);
+}
+
+// ---------- pointer input ----------
+function pointerX(e){
+  const rect = canvas.getBoundingClientRect();
+  const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+  return (clientX - rect.left) * (W / rect.width);
+}
+canvas.addEventListener('mousemove', e=>{ previewX = pointerX(e); });
+canvas.addEventListener('touchmove', e=>{ previewX = pointerX(e); e.preventDefault(); }, {passive:false});
+canvas.addEventListener('click', e=>{ dropFruit(pointerX(e)); });
+canvas.addEventListener('touchstart', e=>{ previewX = pointerX(e); }, {passive:true});
+canvas.addEventListener('touchend', e=>{ dropFruit(previewX); });
+
+// ---------- merging ----------
+const toRemove = new Set();
+Events.on(engine, 'collisionStart', (event)=>{
+  for(const pair of event.pairs){
+    const a = pair.bodyA, b = pair.bodyB;
+    if(a.label!=='fruit' || b.label!=='fruit') continue;
+    if(toRemove.has(a.id) || toRemove.has(b.id)) continue;
+    if(a.plugin.level !== b.plugin.level) continue;
+    if(a.plugin.level >= MAX_LEVEL) continue;
+
+    toRemove.add(a.id); toRemove.add(b.id);
+    const midX = (a.position.x + b.position.x)/2;
+    const midY = (a.position.y + b.position.y)/2;
+    const newLevel = a.plugin.level + 1;
+
+    setTimeout(()=>{
+      World.remove(engine.world, a);
+      World.remove(engine.world, b);
+      const merged = makeFruit(newLevel, midX, midY);
+      World.add(engine.world, merged);
+      score += LEVELS[newLevel].score;
+      scoreEl.textContent = score;
+      spawnPop(midX, midY, LEVELS[newLevel].color);
+    }, 0);
+  }
+});
+
+// little pop particles on merge
+let particles = [];
+function spawnPop(x,y,color){
+  for(let i=0;i<10;i++){
+    particles.push({
+      x, y,
+      vx:(Math.random()-0.5)*4,
+      vy:(Math.random()-1.2)*4,
+      life:1, color
+    });
+  }
+}
+function updateParticles(dt){
+  particles.forEach(p=>{
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12;
+    p.life -= dt/500;
+  });
+  particles = particles.filter(p=>p.life>0);
+}
+function drawParticles(){
+  particles.forEach(p=>{
+    ctx.globalAlpha = Math.max(p.life,0);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// ---------- drawing ----------
+function drawBackground(){
+  ctx.clearRect(0,0,W,H);
+  // subtle crate floor shadow
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#141c3f');
+  grad.addColorStop(1,'#080b1c');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,W,H);
+
+  // danger line
+  ctx.strokeStyle = dangerTimer>0 ? 'rgba(255,90,90,.85)' : 'rgba(255,255,255,.12)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6,6]);
+  ctx.beginPath();
+  ctx.moveTo(6, GAME_OVER_LINE);
+  ctx.lineTo(W-6, GAME_OVER_LINE);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawFruitBody(body){
+  const cfg = LEVELS[body.plugin.level];
+  const {x,y} = body.position;
+  const r = cfg.r;
+
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(body.angle);
+
+  // shadow
+  ctx.beginPath();
+  ctx.ellipse(0, r*0.85, r*0.7, r*0.22, 0, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  ctx.fill();
+
+  // body
+  const rg = ctx.createRadialGradient(-r*0.35,-r*0.35, r*0.1, 0,0, r);
+  rg.addColorStop(0, '#ffffff');
+  rg.addColorStop(0.15, cfg.color);
+  rg.addColorStop(1, shade(cfg.color, -25));
+  ctx.beginPath();
+  ctx.arc(0,0,r,0,Math.PI*2);
+  ctx.fillStyle = rg;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.5, r*0.04);
+  ctx.strokeStyle = shade(cfg.color,-40);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // emoji face (not rotated, stays upright)
+  ctx.font = `${r*1.15}px serif`;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(cfg.emoji, x, y+1);
+}
+
+function shade(hex, percent){
+  const num = parseInt(hex.slice(1),16);
+  let r = (num>>16) + percent;
+  let g = ((num>>8)&0xff) + percent;
+  let b = (num&0xff) + percent;
+  r = Math.min(255,Math.max(0,r));
+  g = Math.min(255,Math.max(0,g));
+  b = Math.min(255,Math.max(0,b));
+  return `rgb(${r},${g},${b})`;
+}
+
+function drawPreview(){
+  if(gameOver) return;
+  const cfg = LEVELS[nextLevel];
+  const clampedX = Math.max(cfg.r+WALL_T, Math.min(W-cfg.r-WALL_T, previewX));
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.arc(clampedX, cfg.r+30, cfg.r, 0, Math.PI*2);
+  ctx.fillStyle = cfg.color;
+  ctx.fill();
+  ctx.font = `${cfg.r*1.15}px serif`;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(cfg.emoji, clampedX, cfg.r+31);
+  ctx.globalAlpha = 1;
+  // guide line
+  ctx.strokeStyle='rgba(255,255,255,.15)';
+  ctx.setLineDash([4,6]);
+  ctx.beginPath();
+  ctx.moveTo(clampedX, cfg.r*2+30);
+  ctx.lineTo(clampedX, H-10);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ---------- game over check ----------
+function checkGameOver(dt){
+  if(gameOver) return;
+  const bodies = Composite.allBodies(engine.world).filter(b=>b.label==='fruit');
+  let violating = false;
+  const now = performance.now();
+  for(const b of bodies){
+    if(now - b.plugin.spawnTime < 900) continue; // grace period after drop
+    const speed = Math.hypot(b.velocity.x, b.velocity.y);
+    const topY = b.position.y - b.circleRadius;
+    if(topY < GAME_OVER_LINE && speed < 1.2){ violating = true; break; }
+  }
+  if(violating){
+    dangerTimer += dt;
+    if(dangerTimer > 900) triggerGameOver();
+  } else {
+    dangerTimer = 0;
+  }
+}
+
+function triggerGameOver(){
+  gameOver = true;
+  if(score > best){ best = score; bestEl.textContent = best; saveBest(); }
+  overlayTitle.textContent = 'GAME OVER';
+  overlayText.textContent = `屋台の実がこぼれてしまいました。スコア: ${score}`;
+  overlay.classList.add('show');
+}
+
+document.getElementById('restartBtn').addEventListener('click', ()=>{
+  const bodies = Composite.allBodies(engine.world).filter(b=>b.label==='fruit');
+  bodies.forEach(b=>World.remove(engine.world, b));
+  score = 0; scoreEl.textContent = 0;
+  dangerTimer = 0;
+  gameOver = false;
+  nextLevel = randSpawnLevel();
+  refreshPreview();
+  overlay.classList.remove('show');
+});
+
+// ---------- main loop ----------
+let lastTime = performance.now();
+function loop(now){
+  const dt = now - lastTime;
+  lastTime = now;
+
+  if(!gameOver){
+    Engine.update(engine, Math.min(dt, 32));
+    checkGameOver(dt);
+  }
+  updateParticles(dt);
+
+  drawBackground();
+  const bodies = Composite.allBodies(engine.world).filter(b=>b.label==='fruit');
+  bodies.forEach(drawFruitBody);
+  drawParticles();
+  drawPreview();
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
 </body>
 </html>
