@@ -511,69 +511,75 @@ let audioStarted = false;
 let bgmMuted = false;
 let masterVol;
 
-function buildBGM(){
-  masterVol = new Tone.Volume(-10).toDestination();
+function buildBGM() {
 
-  const pluck = new Tone.PluckSynth({ attackNoise:0.6, dampening:2800, resonance:0.88 }).connect(masterVol);
-  const pad = new Tone.PolySynth(Tone.Synth, {
-    oscillator:{ type:'sine' },
-    envelope:{ attack:2.2, decay:1, sustain:0.55, release:3.5 }
-  }).connect(masterVol);
+    masterVol = new Tone.Volume(-10).toDestination();
 
-  const scale  = ['C4','D4','E4','G4','A4','C5','D5','E5']; // pentatonic, matsuri feel
-  const chords = [ ['C3','E3','G3'], ['A2','C3','E3'], ['F2','A2','C3'], ['G2','B2','D3'] ];
-  let chordIndex = 0;
+    const pluck = new Tone.PluckSynth({
+        attackNoise: 0.6,
+        dampening: 2800,
+        resonance: 0.88
+    }).connect(masterVol);
 
-  Tone.Transport.bpm.value = 92;
+    const pad = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sine" },
+        envelope: {
+            attack: 2,
+            decay: 1,
+            sustain: 0.5,
+            release: 3
+        }
+    }).connect(masterVol);
 
-  new Tone.Loop(time=>{
-    if(Math.random() < 0.85){
-      const note = scale[Math.floor(Math.random()*scale.length)];
-      pluck.triggerAttack(note, "8n", time);
+    Tone.Transport.bpm.value = 92;
+
+    const scale = ["C4","D4","E4","G4","A4","C5","D5","E5"];
+    const chords = [
+        ["C3","E3","G3"],
+        ["A2","C3","E3"],
+        ["F2","A2","C3"],
+        ["G2","B2","D3"]
+    ];
+
+    let chord = 0;
+
+    new Tone.Loop(time=>{
+        const note = scale[Math.floor(Math.random()*scale.length)];
+        pluck.triggerAttackRelease(note,"8n",time);
+    },"4n").start(0);
+
+    new Tone.Loop(time=>{
+        pad.triggerAttackRelease(chords[chord],"2m",time);
+        chord = (chord+1)%chords.length;
+    },"2m").start(0);
+
+    Tone.Transport.start();
+}
+
+const muteBtn = document.getElementById("muteBtn");
+
+muteBtn.addEventListener("click", async () => {
+
+    if (!audioStarted) {
+
+        await Tone.start();
+
+        if (Tone.context.state !== "running") {
+            await Tone.context.resume();
+        }
+
+        buildBGM();
+
+        audioStarted = true;
+
+        muteBtn.textContent = "♪ BGM OFF";
+        return;
     }
-  }, '4n').start(0);
 
-  new Tone.Loop(time=>{
-    pad.triggerAttackRelease(chords[chordIndex % chords.length], '2n', time);
-    chordIndex++;
-  }, '2m').start(0);
-
-  Tone.Transport.start();
-}
-
-async function startAudio() {
-  try {
-    alert("1");
-
-    if (audioStarted) return;
-
-    await Tone.start();
-    alert("2");
-
-    buildBGM();
-    alert("3");
-
-    audioStarted = true;
-
-  } catch (e) {
-    alert("ERROR: " + e.message);
-  }
-}
-
-const muteBtn = document.getElementById('muteBtn');
-muteBtn.addEventListener('click', async ()=>{
-  if(!audioStarted){
-    await startAudio();
-    muteBtn.textContent = '♪ BGM ON';
-    return;
-  }
-  bgmMuted = !bgmMuted;
-  masterVol.mute = bgmMuted;
-  muteBtn.textContent = bgmMuted ? '♪ BGM OFF' : '♪ BGM ON';
+    bgmMuted = !bgmMuted;
+    masterVol.mute = bgmMuted;
+    muteBtn.textContent = bgmMuted ? "♪ BGM ON" : "♪ BGM OFF";
 });
-// also unlock audio on the first tap/click anywhere (mobile Safari requires a user gesture)
-window.addEventListener('pointerdown', startAudio, { once:true });
-
 // ---------- main loop ----------
 let lastTime = performance.now();
 function loop(now){
