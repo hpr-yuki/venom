@@ -541,14 +541,22 @@ function buildBGM(){
 }
 
 async function startAudio() {
-  if (audioStarted) return;
+  try {
+    alert("start");
 
-  await Tone.start();
+    if (audioStarted) return;
 
-  console.log(Tone.context.state);
+    await Tone.start();
+    alert("tone started");
 
-  audioStarted = true;
-  buildBGM();
+    buildBGM();
+    alert("bgm built");
+
+    audioStarted = true;
+
+  } catch (e) {
+    alert(e);
+  }
 }
 
 const muteBtn = document.getElementById('muteBtn');
