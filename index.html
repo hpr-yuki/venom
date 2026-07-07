@@ -545,6 +545,8 @@ async function startAudio(){
   audioStarted = true;
   await Tone.start();
   buildBGM();
+  const test = new Tone.Synth().toDestination();
+　test.triggerAttackRelease("C4", "8n");
 }
 
 const muteBtn = document.getElementById('muteBtn');
