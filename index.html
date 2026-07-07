@@ -540,13 +540,15 @@ function buildBGM(){
   Tone.Transport.start();
 }
 
-async function startAudio(){
-  if(audioStarted) return;
-  audioStarted = true;
+async function startAudio() {
+  if (audioStarted) return;
+
   await Tone.start();
+
+  console.log(Tone.context.state);
+
+  audioStarted = true;
   buildBGM();
-  const test = new Tone.Synth().toDestination();
-　test.triggerAttackRelease("C4", "8n");
 }
 
 const muteBtn = document.getElementById('muteBtn');
