@@ -2,11 +2,12 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>すいかゲーム</title>
+<title>夜市すいかゲーム</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
 <style>
   :root{
     --night-deep:#0d1530;
@@ -150,8 +151,9 @@
 
 <div id="scaleWrap">
 <div class="stage">
-  <h1>す い か</h1>
+  <h1>夜 市 す い か</h1>
   <div class="subtitle">SAME FRUIT × SAME FRUIT = 進化</div>
+  <button class="btn" id="muteBtn" style="padding:4px 16px; font-size:12px;">♪ BGM ON</button>
 
   <div class="hud">
     <div class="score-box">
@@ -502,6 +504,62 @@ document.getElementById('restartBtn').addEventListener('click', ()=>{
   refreshPreview();
   overlay.classList.remove('show');
 });
+
+// ---------- BGM (procedurally generated night-festival music via Tone.js) ----------
+let audioStarted = false;
+let bgmMuted = false;
+let masterVol;
+
+function buildBGM(){
+  masterVol = new Tone.Volume(-10).toDestination();
+
+  const pluck = new Tone.PluckSynth({ attackNoise:0.6, dampening:2800, resonance:0.88 }).connect(masterVol);
+  const pad = new Tone.PolySynth(Tone.Synth, {
+    oscillator:{ type:'sine' },
+    envelope:{ attack:2.2, decay:1, sustain:0.55, release:3.5 }
+  }).connect(masterVol);
+
+  const scale  = ['C4','D4','E4','G4','A4','C5','D5','E5']; // pentatonic, matsuri feel
+  const chords = [ ['C3','E3','G3'], ['A2','C3','E3'], ['F2','A2','C3'], ['G2','B2','D3'] ];
+  let chordIndex = 0;
+
+  Tone.Transport.bpm.value = 92;
+
+  new Tone.Loop(time=>{
+    if(Math.random() < 0.85){
+      const note = scale[Math.floor(Math.random()*scale.length)];
+      pluck.triggerAttack(note, time);
+    }
+  }, '4n').start(0);
+
+  new Tone.Loop(time=>{
+    pad.triggerAttackRelease(chords[chordIndex % chords.length], '2n', time);
+    chordIndex++;
+  }, '2m').start(0);
+
+  Tone.Transport.start();
+}
+
+async function startAudio(){
+  if(audioStarted) return;
+  audioStarted = true;
+  await Tone.start();
+  buildBGM();
+}
+
+const muteBtn = document.getElementById('muteBtn');
+muteBtn.addEventListener('click', async ()=>{
+  if(!audioStarted){
+    await startAudio();
+    muteBtn.textContent = '♪ BGM ON';
+    return;
+  }
+  bgmMuted = !bgmMuted;
+  masterVol.mute = bgmMuted;
+  muteBtn.textContent = bgmMuted ? '♪ BGM OFF' : '♪ BGM ON';
+});
+// also unlock audio on the first tap/click anywhere (mobile Safari requires a user gesture)
+window.addEventListener('pointerdown', startAudio, { once:true });
 
 // ---------- main loop ----------
 let lastTime = performance.now();
