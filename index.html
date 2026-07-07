@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
 <style>
   :root{
     --night-deep:#0d1530;
@@ -505,56 +504,14 @@ document.getElementById('restartBtn').addEventListener('click', ()=>{
   overlay.classList.remove('show');
 });
 
-// ---------- BGM (procedurally generated night-festival music via Tone.js) ----------
+// ---------- BGM ----------
+const bgm = new Audio("bgm.mp3");
+
+bgm.loop = true;      // 繰り返し再生
+bgm.volume = 0.4;     // 音量（0～1）
+
 let audioStarted = false;
 let bgmMuted = false;
-let masterVol;
-
-function buildBGM() {
-
-    masterVol = new Tone.Volume(-10).toDestination();
-
-    const pluck = new Tone.PluckSynth({
-        attackNoise: 0.6,
-        dampening: 2800,
-        resonance: 0.88
-    }).connect(masterVol);
-
-    const pad = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "sine" },
-        envelope: {
-            attack: 2,
-            decay: 1,
-            sustain: 0.5,
-            release: 3
-        }
-    }).connect(masterVol);
-
-    Tone.Transport.bpm.value = 128;
-
-    const scale = [
-  "C5","D5","E5","G5","A5","C6","D6","E6"];
-    const chords = [
-  ["C4","E4","G4"],
-  ["F4","A4","C5"],
-  ["G4","B4","D5"],
-  ["C4","E4","G4"]
-];
-
-    let chord = 0;
-
-    new Tone.Loop(time=>{
-        const note = scale[Math.floor(Math.random()*scale.length)];
-        pluck.triggerAttackRelease(note,"8n",time);
-    },"4n").start(0);
-
-    new Tone.Loop(time=>{
-        pad.triggerAttackRelease(chords[chord],"2m",time);
-        chord = (chord+1)%chords.length;
-    },"2m").start(0);
-
-    Tone.Transport.start();
-}
 
 const muteBtn = document.getElementById("muteBtn");
 
@@ -562,23 +519,27 @@ muteBtn.addEventListener("click", async () => {
 
     if (!audioStarted) {
 
-        await Tone.start();
-
-        if (Tone.context.state !== "running") {
-            await Tone.context.resume();
+        try {
+            await bgm.play();
+            audioStarted = true;
+            muteBtn.textContent = "♪ BGM OFF";
+        } catch (e) {
+            console.error(e);
         }
 
-        buildBGM();
-
-        audioStarted = true;
-
-        muteBtn.textContent = "♪ BGM OFF";
         return;
     }
 
+    if (bgmMuted) {
+        bgm.play();
+        muteBtn.textContent = "♪ BGM OFF";
+    } else {
+        bgm.pause();
+        muteBtn.textContent = "♪ BGM ON";
+    }
+
     bgmMuted = !bgmMuted;
-    masterVol.mute = bgmMuted;
-    muteBtn.textContent = bgmMuted ? "♪ BGM ON" : "♪ BGM OFF";
+
 });
 // ---------- main loop ----------
 let lastTime = performance.now();
