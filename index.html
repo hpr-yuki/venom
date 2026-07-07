@@ -178,7 +178,25 @@
   </div>
   <div class="footer-note">タップ / クリックで実を落とす。同じ実同士がぶつかると次の大きさに進化します。すいかを作れるかな？</div>
 </div>
+</div>
 
+<script>
+// ---------- fit the whole game to the viewport (fixes Safari overflow/scale issues) ----------
+function fitStage(){
+  const wrap = document.getElementById('scaleWrap');
+  wrap.style.transform = 'scale(1)';
+  const naturalW = wrap.offsetWidth;
+  const naturalH = wrap.offsetHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const scale = Math.min(vw / naturalW, vh / naturalH, 1) * 0.98;
+  wrap.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', fitStage);
+window.addEventListener('orientationchange', ()=>setTimeout(fitStage, 200));
+window.addEventListener('load', fitStage);
+setTimeout(fitStage, 0);
+</script>
 <script>
 // ---------- ambient stars ----------
 const starsWrap = document.getElementById('stars');
