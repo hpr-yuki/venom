@@ -20,13 +20,21 @@
   }
   *{box-sizing:border-box;}
   html,body{
-    margin:0; height:100%;
+    margin:0;
+    height:100%;
+    height:100dvh; /* Safari's dynamic viewport height, ignores address-bar changes */
     background: radial-gradient(ellipse at 50% -10%, #24345f 0%, var(--night-deep) 60%, #060a18 100%);
     font-family:'Zen Maru Gothic', sans-serif;
     color:var(--paper);
-    display:flex; align-items:center; justify-content:center;
     overflow:hidden;
     -webkit-tap-highlight-color: transparent;
+  }
+  body{
+    display:flex; align-items:center; justify-content:center;
+  }
+  #scaleWrap{
+    transform-origin: center center;
+    will-change: transform;
   }
   .stars{position:fixed; inset:0; pointer-events:none;}
   .star{position:absolute; width:2px; height:2px; background:#fff; border-radius:50%; opacity:.5; animation: twinkle 3s ease-in-out infinite;}
@@ -140,6 +148,7 @@
 
 <div class="stars" id="stars"></div>
 
+<div id="scaleWrap">
 <div class="stage">
   <h1>夜 市 す い か</h1>
   <div class="subtitle">SAME FRUIT × SAME FRUIT = 進化</div>
