@@ -528,7 +528,7 @@ function buildBGM(){
   new Tone.Loop(time=>{
     if(Math.random() < 0.85){
       const note = scale[Math.floor(Math.random()*scale.length)];
-      pluck.triggerAttack(note, time);
+      pluck.triggerAttack(note, "8n", time);
     }
   }, '4n').start(0);
 
