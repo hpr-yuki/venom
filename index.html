@@ -2,399 +2,672 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>雪玉ごろごろ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ハクビシンコーヒー</title>
 <style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
-    margin: 0; padding: 0; overflow: hidden;
-    background: #9fc7e8;
-    touch-action: none;
-    -webkit-user-select: none; user-select: none;
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    overflow: hidden; touch-action: none;
     font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: #222;
   }
-  canvas { display: block; }
+  #app {
+    position: relative;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    user-select: none;
+  }
   #hud {
-    position: fixed; top: 0; left: 0; width: 100%;
-    padding: 10px 14px; box-sizing: border-box;
-    color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-    display: flex; justify-content: space-between; font-size: 15px;
-    pointer-events: none; z-index: 5;
+    flex: 0 0 auto;
+    height: 44px;
+    background: #3b2a20;
+    color: #fce8c8;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14px;
+    font-size: 15px;
+    font-weight: bold;
+    z-index: 5;
   }
-  #barWrap {
-    position: fixed; top: 44px; left: 10px; right: 10px;
-    height: 10px; background: rgba(255,255,255,0.3); border-radius: 6px;
-    overflow: hidden; z-index: 5;
+  #instructions {
+    flex: 0 0 auto;
+    background: #55402f;
+    color: #f0dcc0;
+    font-size: 10.5px;
+    padding: 4px 10px;
+    text-align: center;
+    z-index: 5;
   }
-  #bar {
-    height: 100%; width: 0%; background: linear-gradient(90deg,#7fd8ff,#ffffff);
-    transition: width 0.1s linear;
+  /* ---------- 原っぱ (top area) ---------- */
+  #top-area {
+    flex: 1 1 45%;
+    position: relative;
+    background: linear-gradient(180deg, #bdeaff 0%, #bdeaff 26%, #8fca55 26%, #5a9c34 100%);
+    overflow: hidden;
+    border-bottom: 4px solid #3f6b22;
   }
-  #overlay {
-    position: fixed; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; text-align: center;
-    background: rgba(20,40,70,0.72); color: #fff; z-index: 10;
-    padding: 20px; box-sizing: border-box;
+  .decor { position: absolute; pointer-events: none; opacity: 0.9; }
+  .decor.sun { top: 6%; right: 8%; font-size: 34px; }
+  .decor.cloud1 { top: 10%; left: 10%; font-size: 26px; }
+  .decor.cloud2 { top: 16%; left: 55%; font-size: 22px; }
+  .decor.flower1 { bottom: 8%; left: 12%; font-size: 22px; }
+  .decor.flower2 { bottom: 12%; left: 70%; font-size: 20px; }
+  .decor.grass1 { bottom: 4%; left: 35%; font-size: 24px; }
+  .decor.grass2 { bottom: 6%; left: 82%; font-size: 22px; }
+
+  #bottom-area {
+    flex: 1 1 55%;
+    position: relative;
+    background: #efe6d6;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-around;
+    padding: 6px;
+    gap: 6px;
   }
-  #overlay h1 { font-size: 30px; margin: 0 0 10px; }
-  #overlay p { font-size: 16px; line-height: 1.6; margin: 6px 0; max-width: 320px; }
-  #overlay .big { font-size: 44px; margin: 10px 0; }
-  #overlay button, #startBtn {
-    margin-top: 18px; padding: 12px 30px; font-size: 17px; border: none;
-    border-radius: 30px; background: #ffdd55; color: #333; font-weight: bold;
-    box-shadow: 0 4px 0 #d9b420; cursor: pointer;
+  .station {
+    flex: 1 1 0;
+    height: 100%;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px;
+    position: relative;
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.06);
   }
-  .hidden { display: none !important; }
+  .station.grinder-station { background: #dfe9e2; }
+  .station.pot-station { background: #f6e6cf; }
+  .station.cup-station { background: #fbe1e6; justify-content: center; }
+  .station-label {
+    font-size: 11.5px;
+    font-weight: bold;
+    color: #4a3620;
+    text-align: center;
+    padding: 2px 0 4px;
+  }
+  .slot-column {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    flex: 1;
+    gap: 5px;
+  }
+  .slot {
+    flex: 1;
+    border: 2px dashed #97836233;
+    border: 2px dashed #9a8362;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.55);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    text-align: center;
+    padding: 2px;
+    touch-action: none;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .slot.empty { opacity: 0.55; }
+  .slot .slot-icon { font-size: 20px; line-height: 1; display:block; }
+  .slot .slot-text { font-size: 8.5px; font-weight: bold; color: #4a3620; line-height: 1.15; margin-top: 2px; }
+  .slot .slot-count { font-size: 15px; font-weight: bold; color: #b5450f; line-height: 1; margin-top: 1px; }
+
+  .slot.processing { border-style: solid; border-color: #d98c2b; background: rgba(255,205,120,0.55); opacity: 1; }
+  .slot.processing .slot-icon { animation: spin 1s linear infinite; }
+  .slot.ready { border-style: solid; border-color: #2b8a3e; background: rgba(180,240,190,0.6); opacity: 1; cursor: grab; }
+  .slot.tappable { border-style: solid; border-color: #8a5a2b; background: rgba(230,200,160,0.6); opacity: 1; cursor: pointer; }
+  .slot.lifted { border-style: dashed; border-color: #999; background: rgba(230,230,230,0.5); opacity: 0.5; }
+
+  @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+
+  .cup-icon { font-size: 44px; }
+  .cup-hint { font-size: 10.5px; font-weight: bold; color: #6b3040; margin-top: 4px; }
+
+  #drag-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .civet {
+    position: absolute;
+    font-size: 46px;
+    pointer-events: none;
+    transition: opacity 0.4s, transform 0.4s;
+    opacity: 0;
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,0.4));
+  }
+  .civet.show { opacity: 1; }
+  .poop {
+    position: absolute;
+    font-size: 38px;
+    pointer-events: auto;
+    touch-action: none;
+    cursor: grab;
+    transition: left 0.35s ease, top 0.35s ease, transform 0.15s;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.35));
+    z-index: 12;
+  }
+  .poop.dragging {
+    transition: none;
+    transform: scale(1.15);
+    cursor: grabbing;
+    z-index: 20;
+  }
+
+  .drag-token {
+    position: absolute;
+    pointer-events: none;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.85);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  }
+
+  .shake { animation: shake 0.3s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  .pour-fx {
+    position: absolute;
+    font-size: 24px;
+    pointer-events: none;
+    z-index: 25;
+    animation: fadeUp 0.8s forwards;
+  }
+  @keyframes fadeUp {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-30px); }
+  }
+
+  .overlay-screen {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    color: #fff;
+    text-align: center;
+    padding: 20px;
+  }
+  .overlay-screen.hidden { display: none; }
+  .overlay-inner { max-width: 320px; }
+  .overlay-inner h1 { margin: 0 0 10px; font-size: 24px; }
+  .overlay-inner p { font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+  .big-btn {
+    font-size: 16px;
+    padding: 10px 26px;
+    border-radius: 30px;
+    border: none;
+    background: #ff9d3c;
+    color: #3b2a20;
+    font-weight: bold;
+  }
 </style>
 </head>
 <body>
+<div id="app">
+  <div id="hud">
+    <span>⏱ <span id="timer">60</span>秒</span>
+    <span>☕ <span id="score">0</span> 杯</span>
+  </div>
+  <div id="instructions">💩を①へ → 挽けたら②へドラッグ → タップでお湯 → 蒸れたら③へドラッグ!</div>
 
-<canvas id="game"></canvas>
+  <div id="top-area">
+    <div class="decor sun">☀️</div>
+    <div class="decor cloud1">☁️</div>
+    <div class="decor cloud2">☁️</div>
+    <div class="decor flower1">🌼</div>
+    <div class="decor flower2">🌸</div>
+    <div class="decor grass1">🌿</div>
+    <div class="decor grass2">🌿</div>
+  </div>
 
-<div id="hud">
-  <div>距離: <span id="distTxt">0</span> / <span id="goalTxt">0</span> m</div>
-  <div>雪玉サイズ: <span id="sizeTxt">0</span> cm</div>
-</div>
-<div id="barWrap"><div id="bar"></div></div>
+  <div id="bottom-area">
+    <div class="station grinder-station" id="station-grinder">
+      <div class="station-label">① 豆を挽く</div>
+      <div class="slot-column" id="grinder-slots">
+        <div class="slot empty" data-index="0"><span class="slot-icon">➕</span><span class="slot-text">空き</span><span class="slot-count"></span></div>
+        <div class="slot empty" data-index="1"><span class="slot-icon">➕</span><span class="slot-text">空き</span><span class="slot-count"></span></div>
+        <div class="slot empty" data-index="2"><span class="slot-icon">➕</span><span class="slot-text">空き</span><span class="slot-count"></span></div>
+      </div>
+    </div>
+    <div class="station pot-station" id="station-pot-zone">
+      <div class="station-label">② お湯を注ぐ</div>
+      <div class="slot-column" id="pot-slots">
+        <div class="slot empty" data-index="0"><span class="slot-icon">🫖</span><span class="slot-text">空き(①から豆を)</span><span class="slot-count"></span></div>
+        <div class="slot empty" data-index="1"><span class="slot-icon">🫖</span><span class="slot-text">空き(①から豆を)</span><span class="slot-count"></span></div>
+        <div class="slot empty" data-index="2"><span class="slot-icon">🫖</span><span class="slot-text">空き(①から豆を)</span><span class="slot-count"></span></div>
+      </div>
+    </div>
+    <div class="station cup-station" id="station-cup">
+      <div class="station-label">③ カップ</div>
+      <div class="cup-icon">☕</div>
+      <div class="cup-hint">完成品をここへドラッグ!</div>
+    </div>
+  </div>
 
-<div id="overlay">
-  <h1>⛄ 雪玉ころころ</h1>
-  <p>画面の左右をタップして雪玉を転がそう。<br>
-  木や岩にぶつかると雪玉が小さくなるよ。<br>
-  ゴールまでたどり着いて、大きな雪玉を目指せ！</p>
-  <button id="startBtn">タップしてスタート</button>
+  <div id="drag-layer"></div>
+
+  <div id="start-screen" class="overlay-screen">
+    <div class="overlay-inner">
+      <h1>🦝 ハクビシンコーヒー ☕</h1>
+      <p>
+        原っぱに時々あらわれるハクビシンが落としていく💩を集めて、コーヒーを作ろう!<br><br>
+        ① 💩を①の枠へドラッグ(挽くのに3秒)<br>
+        ② 豆ができたら②へドラッグしてタップ(蒸らすのに3秒)<br>
+        ③ 蒸れたら③のカップへドラッグして完成!<br><br>
+        制限時間60秒でできるだけたくさん作ろう!
+      </p>
+      <button id="start-btn" class="big-btn">スタート</button>
+    </div>
+  </div>
+
+  <div id="overlay" class="overlay-screen hidden">
+    <div class="overlay-inner">
+      <h1>タイムアップ!</h1>
+      <p><span id="final-score">0</span> 杯のコーヒーを作れました!</p>
+      <button id="restart-btn" class="big-btn">もう一度あそぶ</button>
+    </div>
+  </div>
 </div>
 
 <script>
-(() => {
-  const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
+(function(){
+  const app = document.getElementById('app');
+  const topArea = document.getElementById('top-area');
+  const dragLayer = document.getElementById('drag-layer');
+  const grinderStation = document.getElementById('station-grinder');
+  const potZone = document.getElementById('station-pot-zone');
+  const cupStation = document.getElementById('station-cup');
+  const timerEl = document.getElementById('timer');
+  const scoreEl = document.getElementById('score');
   const overlay = document.getElementById('overlay');
-  const distTxt = document.getElementById('distTxt');
-  const goalTxt = document.getElementById('goalTxt');
-  const sizeTxt = document.getElementById('sizeTxt');
-  const bar = document.getElementById('bar');
+  const finalScoreEl = document.getElementById('final-score');
+  const restartBtn = document.getElementById('restart-btn');
+  const startScreen = document.getElementById('start-screen');
+  const startBtn = document.getElementById('start-btn');
 
-  let W, H;
-  function resize() {
-    W = canvas.width = window.innerWidth;
-    H = canvas.height = window.innerHeight;
+  let score = 0;
+  let timeLeft = 60;
+  let gameOver = true; // true until game actually starts
+  let timerIntervalId = null;
+  let spawnTimeoutId = null;
+
+  function getRelRect(el){
+    const a = app.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return { left: r.left - a.left, top: r.top - a.top, width: r.width, height: r.height };
   }
-  window.addEventListener('resize', resize);
-  resize();
+  function rectsOverlap(r1, r2){
+    return !(r1.left + r1.width < r2.left ||
+             r1.left > r2.left + r2.width ||
+             r1.top + r1.height < r2.top ||
+             r1.top > r2.top + r2.height);
+  }
+  function shakeEl(el){
+    el.classList.remove('shake');
+    void el.offsetWidth;
+    el.classList.add('shake');
+  }
+  function spawnFx(anchorEl, text){
+    const r = getRelRect(anchorEl);
+    const fx = document.createElement('div');
+    fx.className = 'pour-fx';
+    fx.textContent = text;
+    fx.style.left = (r.left + r.width/2 - 12) + 'px';
+    fx.style.top = r.top + 'px';
+    dragLayer.appendChild(fx);
+    setTimeout(() => fx.remove(), 850);
+  }
 
-  // ---------- ゲーム設定 ----------
-  const LANES = 5;
-  const GOAL_DISTANCE = 4500;   // ゴールまでの距離(単位)
-  const START_RADIUS = 18;
-  const MIN_RADIUS = 9;
-  const MAX_RADIUS = 95;
-  const GROWTH_COEF = 0.021;    // 距離に応じた成長率
-  const HIT_SHRINK = 0.72;      // 衝突時の縮小率
-  const INVULN_TIME = 1.0;      // 衝突後の無敵時間(秒)
+  // ---------- GRINDER SLOTS (①) ----------
+  const grinderSlots = Array.from(document.querySelectorAll('#grinder-slots .slot')).map(el => ({
+    el, iconEl: el.querySelector('.slot-icon'), textEl: el.querySelector('.slot-text'),
+    countEl: el.querySelector('.slot-count'), state: 'empty', remaining: 0, timer: null
+  }));
 
-  let state = 'start'; // start | playing | win | lose
-  let distance = 0;
-  let baseSpeed = 260;   // px/sec 相当のスクロール速度
-  let scrollSpeed = baseSpeed;
-  let player, obstacles, snowParticles;
-  let spawnTimer = 0;
-  let invuln = 0;
-  let shake = 0;
-  let lastTime = 0;
-
-  function laneWidth() { return W / LANES; }
-  function laneCenterX(lane) { return laneWidth() * (lane + 0.5); }
-
-  function resetGame() {
-    distance = 0;
-    scrollSpeed = baseSpeed;
-    obstacles = [];
-    spawnTimer = 0.6;
-    invuln = 0;
-    shake = 0;
-    player = {
-      lane: Math.floor(LANES / 2),
-      x: laneCenterX(Math.floor(LANES / 2)),
-      y: 0,
-      radius: START_RADIUS,
-      rot: 0
-    };
-    player.y = H * 0.78;
-    snowParticles = [];
-    for (let i = 0; i < 90; i++) {
-      snowParticles.push({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        r: 1 + Math.random() * 2.5,
-        speed: 40 + Math.random() * 90,
-        drift: (Math.random() - 0.5) * 30
-      });
+  function renderGrinderSlot(slot){
+    slot.el.classList.remove('processing','ready','lifted','empty');
+    slot.countEl.textContent = '';
+    switch(slot.state){
+      case 'empty':
+        slot.iconEl.textContent = '➕'; slot.textEl.textContent = '空き';
+        slot.el.classList.add('empty'); break;
+      case 'grinding':
+        slot.iconEl.textContent = '🌀'; slot.textEl.textContent = 'コーヒー豆を挽いています...';
+        slot.countEl.textContent = slot.remaining;
+        slot.el.classList.add('processing'); break;
+      case 'done':
+        slot.iconEl.textContent = '🫘'; slot.textEl.textContent = '②へドラッグ!';
+        slot.el.classList.add('ready'); break;
+      case 'lifted':
+        slot.iconEl.textContent = '🫘'; slot.textEl.textContent = '運搬中...';
+        slot.el.classList.add('lifted'); break;
     }
-    goalTxt.textContent = GOAL_DISTANCE;
   }
 
-  // ---------- 障害物 ----------
-  function spawnObstacle() {
-    const lane = Math.floor(Math.random() * LANES);
-    const type = Math.random() < 0.5 ? 'tree' : 'rock';
-    const size = type === 'tree' ? (50 + Math.random() * 20) : (40 + Math.random() * 22);
-    obstacles.push({
-      lane, type, size,
-      x: laneCenterX(lane),
-      y: -size * 2,
-      hit: false,
-      alpha: 1
-    });
-  }
-
-  function difficultySpawnInterval() {
-    const t = Math.min(distance / GOAL_DISTANCE, 1);
-    return Math.max(0.55, 1.4 - t * 0.9);
-  }
-
-  // ---------- 描画 ----------
-  function drawBackground(dt) {
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, '#bfe0f7');
-    grad.addColorStop(1, '#eaf6ff');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-
-    // 雪
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    for (const p of snowParticles) {
-      if (state === 'playing' || state === 'start') {
-        p.y += p.speed * dt;
-        p.x += p.drift * dt;
-        if (p.y > H) { p.y = -5; p.x = Math.random() * W; }
-        if (p.x < 0) p.x = W;
-        if (p.x > W) p.x = 0;
+  function startGrinding(slot){
+    slot.state = 'grinding';
+    slot.remaining = 3;
+    renderGrinderSlot(slot);
+    slot.timer = setInterval(() => {
+      slot.remaining--;
+      if (slot.remaining <= 0){
+        clearInterval(slot.timer); slot.timer = null;
+        slot.state = 'done';
       }
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
+      renderGrinderSlot(slot);
+    }, 1000);
   }
 
-  function drawTree(x, y, size, alpha) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#6b4a2b';
-    ctx.fillRect(x - size * 0.08, y + size * 0.35, size * 0.16, size * 0.35);
-    ctx.fillStyle = '#2f7a4d';
-    for (let i = 0; i < 3; i++) {
-      const w = size * (1 - i * 0.22);
-      const yy = y + size * 0.35 - i * size * 0.32;
-      ctx.beginPath();
-      ctx.moveTo(x, yy - size * 0.42);
-      ctx.lineTo(x - w * 0.5, yy);
-      ctx.lineTo(x + w * 0.5, yy);
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.restore();
-  }
+  grinderSlots.forEach(slot => {
+    slot.el.addEventListener('pointerdown', (e) => {
+      if (gameOver) return;
+      if (slot.state !== 'done'){
+        if (slot.state === 'grinding') shakeEl(slot.el);
+        return;
+      }
+      e.preventDefault();
+      slot.el.setPointerCapture(e.pointerId);
+      const originRect = slot.el.getBoundingClientRect();
+      const a = app.getBoundingClientRect();
+      const clone = document.createElement('div');
+      clone.className = 'drag-token';
+      clone.textContent = '🫘';
+      clone.style.left = (originRect.left - a.left) + 'px';
+      clone.style.top = (originRect.top - a.top) + 'px';
+      clone.style.width = originRect.width + 'px';
+      clone.style.height = originRect.height + 'px';
+      dragLayer.appendChild(clone);
 
-  function drawRock(x, y, size, alpha) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#8a8f96';
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.5, y + size * 0.3);
-    ctx.lineTo(x - size * 0.3, y - size * 0.35);
-    ctx.lineTo(x + size * 0.15, y - size * 0.45);
-    ctx.lineTo(x + size * 0.5, y - size * 0.05);
-    ctx.lineTo(x + size * 0.4, y + size * 0.35);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.beginPath();
-    ctx.ellipse(x - size * 0.1, y - size * 0.2, size * 0.22, size * 0.1, -0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
+      slot.state = 'lifted';
+      renderGrinderSlot(slot);
 
-  function drawSnowball() {
-    const p = player;
-    const flashing = invuln > 0 && Math.floor(invuln * 10) % 2 === 0;
-    ctx.save();
-    if (flashing) ctx.globalAlpha = 0.45;
-    const g = ctx.createRadialGradient(
-      p.x - p.radius * 0.3, p.y - p.radius * 0.3, p.radius * 0.1,
-      p.x, p.y, p.radius
-    );
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(1, '#d7e9f5');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(150,170,190,0.6)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    // 質感の斑点
-    ctx.fillStyle = 'rgba(180,200,215,0.5)';
-    for (let i = 0; i < 5; i++) {
-      const a = p.rot + i * (Math.PI * 2 / 5);
-      const dx = Math.cos(a) * p.radius * 0.55;
-      const dy = Math.sin(a) * p.radius * 0.55;
-      ctx.beginPath();
-      ctx.arc(p.x + dx, p.y + dy, p.radius * 0.12, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
+      const offsetX = e.clientX - originRect.left;
+      const offsetY = e.clientY - originRect.top;
 
-  // ---------- 更新 ----------
-  function update(dt) {
-    // レーンへ滑らかに移動
-    const targetX = laneCenterX(player.lane);
-    player.x += (targetX - player.x) * Math.min(1, dt * 10);
-    player.rot += dt * (scrollSpeed / 40);
+      function onMove(ev){
+        clone.style.left = (ev.clientX - a.left - offsetX) + 'px';
+        clone.style.top = (ev.clientY - a.top - offsetY) + 'px';
+      }
+      function onUp(ev){
+        slot.el.removeEventListener('pointermove', onMove);
+        slot.el.removeEventListener('pointerup', onUp);
+        try { slot.el.releasePointerCapture(e.pointerId); } catch(err){}
 
-    if (invuln > 0) invuln -= dt;
-    if (shake > 0) shake -= dt;
-
-    // 距離とスピード
-    scrollSpeed = baseSpeed + Math.min(distance / GOAL_DISTANCE, 1) * 220;
-    const delta = scrollSpeed * dt;
-    distance += delta;
-
-    // 雪玉の成長(転がった分だけ大きくなる)
-    player.radius = Math.min(MAX_RADIUS, player.radius + delta * GROWTH_COEF);
-
-    // 障害物スポーン
-    spawnTimer -= dt;
-    if (spawnTimer <= 0) {
-      spawnObstacle();
-      spawnTimer = difficultySpawnInterval();
-    }
-
-    // 障害物の移動と当たり判定
-    for (const o of obstacles) {
-      o.y += scrollSpeed * dt * 1.0;
-      if (!o.hit && invuln <= 0) {
-        const dx = o.x - player.x;
-        const dy = o.y - player.y;
-        const distC = Math.sqrt(dx * dx + dy * dy);
-        const hitDist = player.radius * 0.85 + o.size * 0.38;
-        if (distC < hitDist) {
-          o.hit = true;
-          player.radius = Math.max(MIN_RADIUS - 3, player.radius * HIT_SHRINK);
-          invuln = INVULN_TIME;
-          shake = 0.25;
-          if (player.radius < MIN_RADIUS) {
-            endGame('lose');
-            return;
+        const cloneRect = getRelRect(clone);
+        const potRect = getRelRect(potZone);
+        let transferred = false;
+        if (rectsOverlap(cloneRect, potRect)){
+          const target = potSlots.find(s => s.state === 'empty');
+          if (target){
+            target.state = 'has-grounds';
+            renderPotSlot(target);
+            transferred = true;
           }
         }
+        clone.remove();
+        slot.state = transferred ? 'empty' : 'done';
+        renderGrinderSlot(slot);
+        if (!transferred) shakeEl(slot.el);
       }
-      if (o.hit) o.alpha -= dt * 3;
-    }
-    obstacles = obstacles.filter(o => o.y < H + 100 && o.alpha > 0);
-
-    // HUD更新
-    distTxt.textContent = Math.floor(distance);
-    sizeTxt.textContent = Math.round(player.radius * 2);
-    bar.style.width = Math.min(100, (distance / GOAL_DISTANCE) * 100) + '%';
-
-    if (distance >= GOAL_DISTANCE) {
-      endGame('win');
-    }
-  }
-
-  function render(dt) {
-    ctx.save();
-    if (shake > 0) {
-      ctx.translate((Math.random() - 0.5) * 10 * shake / 0.25, (Math.random() - 0.5) * 10 * shake / 0.25);
-    }
-    drawBackground(dt);
-    for (const o of obstacles) {
-      if (o.type === 'tree') drawTree(o.x, o.y, o.size, o.alpha);
-      else drawRock(o.x, o.y, o.size, o.alpha);
-    }
-    if (state === 'playing') drawSnowball();
-    ctx.restore();
-  }
-
-  // ---------- ゲームフロー ----------
-  function startGame() {
-    resetGame();
-    state = 'playing';
-    overlay.classList.add('hidden');
-  }
-
-  function endGame(result) {
-    state = result;
-    setTimeout(() => showOverlay(result), 250);
-  }
-
-  function showOverlay(result) {
-    overlay.innerHTML = '';
-    const h1 = document.createElement('h1');
-    const p1 = document.createElement('p');
-    const bigDiv = document.createElement('div');
-    bigDiv.className = 'big';
-    const p2 = document.createElement('p');
-    const btn = document.createElement('button');
-    btn.textContent = 'もう一度あそぶ';
-
-    if (result === 'win') {
-      const score = Math.round(player.radius * 12);
-      h1.textContent = '🏁 ゴール！';
-      p1.textContent = 'みごとゴールまで転がりきった！';
-      bigDiv.textContent = 'スコア: ' + score;
-      p2.textContent = '雪玉の大きさ: 直径 ' + Math.round(player.radius * 2) + ' cm';
-    } else if (result === 'lose') {
-      h1.textContent = '💧 とけてしまった…';
-      p1.textContent = 'ぶつかりすぎて雪玉が小さくなりすぎた！';
-      bigDiv.textContent = '距離: ' + Math.floor(distance) + ' m';
-      p2.textContent = 'もう一度挑戦してみよう。';
-    }
-
-    overlay.appendChild(h1);
-    overlay.appendChild(p1);
-    overlay.appendChild(bigDiv);
-    overlay.appendChild(p2);
-    overlay.appendChild(btn);
-    overlay.classList.remove('hidden');
-    btn.addEventListener('click', startGame);
-  }
-
-  document.getElementById('startBtn').addEventListener('click', startGame);
-
-  // ---------- 入力 ----------
-  function handleTap(clientX) {
-    if (state !== 'playing') return;
-    if (clientX < W / 2) {
-      player.lane = Math.max(0, player.lane - 1);
-    } else {
-      player.lane = Math.min(LANES - 1, player.lane + 1);
-    }
-  }
-  canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    handleTap(e.touches[0].clientX);
-  }, { passive: false });
-  canvas.addEventListener('click', (e) => {
-    handleTap(e.clientX);
+      slot.el.addEventListener('pointermove', onMove);
+      slot.el.addEventListener('pointerup', onUp);
+    });
   });
 
-  // ---------- メインループ ----------
-  function loop(ts) {
-    if (!lastTime) lastTime = ts;
-    let dt = (ts - lastTime) / 1000;
-    dt = Math.min(dt, 0.05);
-    lastTime = ts;
+  // ---------- POT SLOTS (②) ----------
+  const potSlots = Array.from(document.querySelectorAll('#pot-slots .slot')).map(el => ({
+    el, iconEl: el.querySelector('.slot-icon'), textEl: el.querySelector('.slot-text'),
+    countEl: el.querySelector('.slot-count'), state: 'empty', remaining: 0, timer: null
+  }));
 
-    if (state === 'playing') update(dt);
-    render(dt);
-
-    requestAnimationFrame(loop);
+  function renderPotSlot(slot){
+    slot.el.classList.remove('processing','ready','tappable','lifted','empty');
+    slot.countEl.textContent = '';
+    switch(slot.state){
+      case 'empty':
+        slot.iconEl.textContent = '🫖'; slot.textEl.textContent = '空き(①から豆を)';
+        slot.el.classList.add('empty'); break;
+      case 'has-grounds':
+        slot.iconEl.textContent = '🫖'; slot.textEl.textContent = 'タップでお湯を注ぐ';
+        slot.el.classList.add('tappable'); break;
+      case 'brewing':
+        slot.iconEl.textContent = '♨️'; slot.textEl.textContent = 'コーヒーを蒸らしています...';
+        slot.countEl.textContent = slot.remaining;
+        slot.el.classList.add('processing'); break;
+      case 'brewed':
+        slot.iconEl.textContent = '☕'; slot.textEl.textContent = '③へドラッグ!';
+        slot.el.classList.add('ready'); break;
+      case 'lifted':
+        slot.iconEl.textContent = '☕'; slot.textEl.textContent = '運搬中...';
+        slot.el.classList.add('lifted'); break;
+    }
   }
 
-  resetGame();
-  requestAnimationFrame(loop);
+  function startBrewing(slot){
+    slot.state = 'brewing';
+    slot.remaining = 3;
+    renderPotSlot(slot);
+    slot.timer = setInterval(() => {
+      slot.remaining--;
+      if (slot.remaining <= 0){
+        clearInterval(slot.timer); slot.timer = null;
+        slot.state = 'brewed';
+      }
+      renderPotSlot(slot);
+    }, 1000);
+  }
+
+  potSlots.forEach(slot => {
+    slot.el.addEventListener('pointerdown', (e) => {
+      if (gameOver) return;
+      if (slot.state === 'has-grounds'){
+        e.preventDefault();
+        startBrewing(slot);
+        return;
+      }
+      if (slot.state !== 'brewed'){
+        if (slot.state === 'brewing') shakeEl(slot.el);
+        return;
+      }
+      // drag brewed coffee to cup
+      e.preventDefault();
+      slot.el.setPointerCapture(e.pointerId);
+      const originRect = slot.el.getBoundingClientRect();
+      const a = app.getBoundingClientRect();
+      const clone = document.createElement('div');
+      clone.className = 'drag-token';
+      clone.textContent = '☕';
+      clone.style.left = (originRect.left - a.left) + 'px';
+      clone.style.top = (originRect.top - a.top) + 'px';
+      clone.style.width = originRect.width + 'px';
+      clone.style.height = originRect.height + 'px';
+      dragLayer.appendChild(clone);
+
+      slot.state = 'lifted';
+      renderPotSlot(slot);
+
+      const offsetX = e.clientX - originRect.left;
+      const offsetY = e.clientY - originRect.top;
+
+      function onMove(ev){
+        clone.style.left = (ev.clientX - a.left - offsetX) + 'px';
+        clone.style.top = (ev.clientY - a.top - offsetY) + 'px';
+      }
+      function onUp(ev){
+        slot.el.removeEventListener('pointermove', onMove);
+        slot.el.removeEventListener('pointerup', onUp);
+        try { slot.el.releasePointerCapture(e.pointerId); } catch(err){}
+
+        const cloneRect = getRelRect(clone);
+        const cupRect = getRelRect(cupStation);
+        let poured = false;
+        if (rectsOverlap(cloneRect, cupRect)){
+          poured = true;
+          score++;
+          scoreEl.textContent = score;
+          spawnFx(cupStation, '☕✨');
+        }
+        clone.remove();
+        slot.state = poured ? 'empty' : 'brewed';
+        renderPotSlot(slot);
+        if (!poured) shakeEl(slot.el);
+      }
+      slot.el.addEventListener('pointermove', onMove);
+      slot.el.addEventListener('pointerup', onUp);
+    });
+  });
+
+  // ---------- CIVET & POOP ----------
+  function spawnCivet(){
+    if (gameOver) return;
+    const areaRect = getRelRect(topArea);
+    const civetSize = 46;
+    const margin = 20;
+    const x = margin + Math.random() * Math.max(10, areaRect.width - civetSize - margin*2);
+    const y = margin + Math.random() * Math.max(10, areaRect.height - civetSize - margin*2 - 30);
+
+    const civet = document.createElement('div');
+    civet.className = 'civet';
+    civet.textContent = '🦝';
+    civet.style.left = x + 'px';
+    civet.style.top = (areaRect.top + y) + 'px';
+    dragLayer.appendChild(civet);
+    requestAnimationFrame(() => civet.classList.add('show'));
+
+    setTimeout(() => {
+      if (gameOver) { civet.remove(); return; }
+      spawnPoop(x + 6, areaRect.top + y + civetSize - 8);
+    }, 700);
+
+    setTimeout(() => {
+      civet.classList.remove('show');
+      setTimeout(() => civet.remove(), 400);
+    }, 1500);
+  }
+
+  function spawnPoop(x, y){
+    if (gameOver) return;
+    const poop = document.createElement('div');
+    poop.className = 'poop';
+    poop.textContent = '💩';
+    poop.style.left = x + 'px';
+    poop.style.top = y + 'px';
+    dragLayer.appendChild(poop);
+
+    const homeLeft = x, homeTop = y;
+    let dragging = false;
+    let offsetX = 0, offsetY = 0;
+
+    poop.addEventListener('pointerdown', (e) => {
+      if (gameOver) return;
+      poop.setPointerCapture(e.pointerId);
+      dragging = true;
+      poop.classList.add('dragging');
+      const r = poop.getBoundingClientRect();
+      offsetX = e.clientX - r.left;
+      offsetY = e.clientY - r.top;
+    });
+    poop.addEventListener('pointermove', (e) => {
+      if (!dragging || gameOver) return;
+      const a = app.getBoundingClientRect();
+      poop.style.left = (e.clientX - a.left - offsetX) + 'px';
+      poop.style.top = (e.clientY - a.top - offsetY) + 'px';
+    });
+    poop.addEventListener('pointerup', () => {
+      if (!dragging) return;
+      dragging = false;
+      poop.classList.remove('dragging');
+      if (gameOver) { poop.remove(); return; }
+
+      const poopRect = getRelRect(poop);
+      const grinderRect = getRelRect(grinderStation);
+      if (rectsOverlap(poopRect, grinderRect)){
+        const target = grinderSlots.find(s => s.state === 'empty');
+        if (target){
+          poop.remove();
+          startGrinding(target);
+          return;
+        } else {
+          shakeEl(grinderStation);
+        }
+      }
+      poop.style.left = homeLeft + 'px';
+      poop.style.top = homeTop + 'px';
+    });
+
+    setTimeout(() => { if (poop.isConnected && !dragging) poop.remove(); }, 10000);
+  }
+
+  function scheduleSpawn(){
+    if (gameOver) return;
+    const delay = 1000 + Math.random() * 2000;
+    spawnTimeoutId = setTimeout(() => { spawnCivet(); scheduleSpawn(); }, delay);
+  }
+
+  // ---------- GAME FLOW ----------
+  function clearAllSlotTimers(){
+    [...grinderSlots, ...potSlots].forEach(s => { if (s.timer){ clearInterval(s.timer); s.timer = null; } });
+  }
+
+  function resetSlots(){
+    grinderSlots.forEach(s => { s.state='empty'; s.remaining=0; renderGrinderSlot(s); });
+    potSlots.forEach(s => { s.state='empty'; s.remaining=0; renderPotSlot(s); });
+  }
+
+  function startGame(){
+    score = 0;
+    timeLeft = 60;
+    scoreEl.textContent = score;
+    timerEl.textContent = timeLeft;
+    overlay.classList.add('hidden');
+    startScreen.classList.add('hidden');
+
+    clearAllSlotTimers();
+    resetSlots();
+    dragLayer.querySelectorAll('.civet, .poop, .pour-fx, .drag-token').forEach(el => el.remove());
+
+    if (timerIntervalId) clearInterval(timerIntervalId);
+    if (spawnTimeoutId) clearTimeout(spawnTimeoutId);
+
+    gameOver = false;
+
+    timerIntervalId = setInterval(() => {
+      timeLeft--;
+      timerEl.textContent = timeLeft;
+      if (timeLeft <= 0) endGame();
+    }, 1000);
+
+    scheduleSpawn();
+  }
+
+  function endGame(){
+    gameOver = true;
+    clearInterval(timerIntervalId);
+    clearTimeout(spawnTimeoutId);
+    clearAllSlotTimers();
+    dragLayer.querySelectorAll('.civet, .poop').forEach(el => el.remove());
+    finalScoreEl.textContent = score;
+    overlay.classList.remove('hidden');
+  }
+
+  startBtn.addEventListener('click', startGame);
+  restartBtn.addEventListener('click', startGame);
+
+  // idle initial render (before start)
+  resetSlots();
 })();
 </script>
 </body>
