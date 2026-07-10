@@ -96,7 +96,6 @@
   }
   .slot {
     flex: 1;
-    border: 2px dashed #97836233;
     border: 2px dashed #9a8362;
     border-radius: 10px;
     background: rgba(255,255,255,0.55);
@@ -133,15 +132,16 @@
     pointer-events: none;
     z-index: 10;
   }
-  .civet {
+  .civet, .cleaner {
     position: absolute;
     font-size: 46px;
     pointer-events: none;
-    transition: opacity 0.4s, transform 0.4s;
+    transition: left 0.9s linear, opacity 0.4s;
     opacity: 0;
     filter: drop-shadow(0 3px 2px rgba(0,0,0,0.4));
   }
-  .civet.show { opacity: 1; }
+  .cleaner { font-size: 40px; }
+  .civet.show, .cleaner.show { opacity: 1; }
   .poop {
     position: absolute;
     font-size: 38px;
@@ -180,10 +180,12 @@
   }
   .pour-fx {
     position: absolute;
-    font-size: 24px;
+    font-size: 20px;
+    font-weight: bold;
     pointer-events: none;
     z-index: 25;
-    animation: fadeUp 0.8s forwards;
+    animation: fadeUp 0.9s forwards;
+    white-space: nowrap;
   }
   @keyframes fadeUp {
     0% { opacity: 1; transform: translateY(0); }
@@ -203,7 +205,10 @@
   .overlay-screen.hidden { display: none; }
   .overlay-inner { max-width: 320px; }
   .overlay-inner h1 { margin: 0 0 10px; font-size: 24px; }
-  .overlay-inner p { font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+  .overlay-inner p { font-size: 14px; line-height: 1.6; margin-bottom: 12px; }
+  .hs-line { font-size: 15px !important; color: #ffe27a; font-weight: bold; }
+  #new-record-badge { color: #ffe27a; font-weight: bold; font-size: 15px; margin-bottom: 12px; }
+  #new-record-badge.hidden { display: none; }
   .big-btn {
     font-size: 16px;
     padding: 10px 26px;
@@ -262,11 +267,13 @@
   <div id="start-screen" class="overlay-screen">
     <div class="overlay-inner">
       <h1>🦝 ハクビシンコーヒー ☕</h1>
+      <p class="hs-line">ハイスコア: <span id="start-hs-value">0</span> 杯</p>
       <p>
         原っぱに時々あらわれるハクビシンが落としていく💩を集めて、コーヒーを作ろう!<br><br>
         ① 💩を①の枠へドラッグ(挽くのに3秒)<br>
         ② 豆ができたら②へドラッグしてタップ(蒸らすのに3秒)<br>
         ③ 蒸れたら③のカップへドラッグして完成!<br><br>
+        掃除屋さんが💩を回収しちゃう前に集めよう!<br>
         制限時間60秒でできるだけたくさん作ろう!
       </p>
       <button id="start-btn" class="big-btn">スタート</button>
@@ -276,8 +283,10 @@
   <div id="overlay" class="overlay-screen hidden">
     <div class="overlay-inner">
       <h1>タイムアップ!</h1>
+      <p id="new-record-badge" class="hidden">🎉 ハイスコア更新! 🎉</p>
       <p><span id="final-score">0</span> 杯のコーヒーを作れました!</p>
-      <button id="restart-btn" class="big-btn">もう一度あそぶ</button>
+      <p class="hs-line">ハイスコア: <span id="final-hs-value">0</span> 杯</p>
+      <button id="back-to-top-btn" class="big-btn">トップに戻る</button>
     </div>
   </div>
 </div>
@@ -294,15 +303,43 @@
   const scoreEl = document.getElementById('score');
   const overlay = document.getElementById('overlay');
   const finalScoreEl = document.getElementById('final-score');
-  const restartBtn = document.getElementById('restart-btn');
+  const backToTopBtn = document.getElementById('back-to-top-btn');
   const startScreen = document.getElementById('start-screen');
   const startBtn = document.getElementById('start-btn');
+  const startHsValue = document.getElementById('start-hs-value');
+  const finalHsValue = document.getElementById('final-hs-value');
+  const newRecordBadge = document.getElementById('new-record-badge');
 
   let score = 0;
   let timeLeft = 60;
-  let gameOver = true; // true until game actually starts
+  let gameOver = true;
+  let highScore = 0;
   let timerIntervalId = null;
   let spawnTimeoutId = null;
+  let cleanerTimeoutId = null;
+
+  const HS_KEY = 'hakubishin_coffee_highscore';
+
+  async function loadHighScore(){
+    try {
+      if (window.storage && window.storage.get) {
+        const res = await window.storage.get(HS_KEY, false);
+        if (res && res.value) return parseInt(res.value, 10) || 0;
+      }
+    } catch(e) { /* not stored yet or unavailable */ }
+    return 0;
+  }
+  async function saveHighScore(v){
+    try {
+      if (window.storage && window.storage.set) {
+        await window.storage.set(HS_KEY, String(v), false);
+      }
+    } catch(e) { /* storage unavailable, ignore */ }
+  }
+  function updateHighScoreDisplays(){
+    startHsValue.textContent = highScore;
+    finalHsValue.textContent = highScore;
+  }
 
   function getRelRect(el){
     const a = app.getBoundingClientRect();
@@ -320,15 +357,18 @@
     void el.offsetWidth;
     el.classList.add('shake');
   }
-  function spawnFx(anchorEl, text){
-    const r = getRelRect(anchorEl);
+  function spawnFxAt(left, top, text){
     const fx = document.createElement('div');
     fx.className = 'pour-fx';
     fx.textContent = text;
-    fx.style.left = (r.left + r.width/2 - 12) + 'px';
-    fx.style.top = r.top + 'px';
+    fx.style.left = left + 'px';
+    fx.style.top = top + 'px';
     dragLayer.appendChild(fx);
-    setTimeout(() => fx.remove(), 850);
+    setTimeout(() => fx.remove(), 900);
+  }
+  function spawnFx(anchorEl, text){
+    const r = getRelRect(anchorEl);
+    spawnFxAt(r.left + r.width/2 - 12, r.top, text);
   }
 
   // ---------- GRINDER SLOTS (①) ----------
@@ -482,7 +522,6 @@
         if (slot.state === 'brewing') shakeEl(slot.el);
         return;
       }
-      // drag brewed coffee to cup
       e.preventDefault();
       slot.el.setPointerCapture(e.pointerId);
       const originRect = slot.el.getBoundingClientRect();
@@ -530,32 +569,46 @@
     });
   });
 
-  // ---------- CIVET & POOP ----------
+  // ---------- CIVET (左右からとことこ) & POOP ----------
+  const ENTER_MS = 900, PAUSE_MS = 400, EXIT_MS = 900;
+
   function spawnCivet(){
     if (gameOver) return;
     const areaRect = getRelRect(topArea);
     const civetSize = 46;
     const margin = 20;
-    const x = margin + Math.random() * Math.max(10, areaRect.width - civetSize - margin*2);
+    const targetX = margin + Math.random() * Math.max(10, areaRect.width - civetSize - margin*2);
     const y = margin + Math.random() * Math.max(10, areaRect.height - civetSize - margin*2 - 30);
+    const fromLeft = Math.random() < 0.5;
+    const startX = fromLeft ? -civetSize : areaRect.width + civetSize;
 
     const civet = document.createElement('div');
     civet.className = 'civet';
     civet.textContent = '🦝';
-    civet.style.left = x + 'px';
     civet.style.top = (areaRect.top + y) + 'px';
+    civet.style.left = startX + 'px';
+    civet.style.transform = fromLeft ? 'scaleX(1)' : 'scaleX(-1)';
     dragLayer.appendChild(civet);
-    requestAnimationFrame(() => civet.classList.add('show'));
+
+    requestAnimationFrame(() => {
+      civet.classList.add('show');
+      requestAnimationFrame(() => { civet.style.left = targetX + 'px'; });
+    });
 
     setTimeout(() => {
       if (gameOver) { civet.remove(); return; }
-      spawnPoop(x + 6, areaRect.top + y + civetSize - 8);
-    }, 700);
+      spawnPoop(targetX + 6, areaRect.top + y + civetSize - 8);
+    }, ENTER_MS + PAUSE_MS);
 
     setTimeout(() => {
-      civet.classList.remove('show');
-      setTimeout(() => civet.remove(), 400);
-    }, 1500);
+      if (!civet.isConnected) return;
+      civet.style.transform = fromLeft ? 'scaleX(-1)' : 'scaleX(1)';
+      civet.style.left = startX + 'px';
+      setTimeout(() => {
+        civet.classList.remove('show');
+        setTimeout(() => civet.remove(), 400);
+      }, EXIT_MS);
+    }, ENTER_MS + PAUSE_MS * 2);
   }
 
   function spawnPoop(x, y){
@@ -575,6 +628,7 @@
       if (gameOver) return;
       poop.setPointerCapture(e.pointerId);
       dragging = true;
+      poop.dataset.dragging = '1';
       poop.classList.add('dragging');
       const r = poop.getBoundingClientRect();
       offsetX = e.clientX - r.left;
@@ -589,6 +643,7 @@
     poop.addEventListener('pointerup', () => {
       if (!dragging) return;
       dragging = false;
+      delete poop.dataset.dragging;
       poop.classList.remove('dragging');
       if (gameOver) { poop.remove(); return; }
 
@@ -608,7 +663,7 @@
       poop.style.top = homeTop + 'px';
     });
 
-    setTimeout(() => { if (poop.isConnected && !dragging) poop.remove(); }, 10000);
+    setTimeout(() => { if (poop.isConnected && !dragging) poop.remove(); }, 12000);
   }
 
   function scheduleSpawn(){
@@ -617,14 +672,62 @@
     spawnTimeoutId = setTimeout(() => { spawnCivet(); scheduleSpawn(); }, delay);
   }
 
+  // ---------- 掃除屋さん (poop cleaner) ----------
+  function trySpawnCleaner(){
+    if (gameOver) return;
+    const poops = Array.from(dragLayer.querySelectorAll('.poop')).filter(p => !p.dataset.dragging);
+    if (poops.length === 0) return;
+    const target = poops[Math.floor(Math.random() * poops.length)];
+    const areaRect = getRelRect(topArea);
+    const targetX = parseFloat(target.style.left);
+    const targetY = parseFloat(target.style.top);
+    const fromLeft = Math.random() < 0.5;
+    const startX = fromLeft ? -50 : areaRect.width + 50;
+
+    const cleaner = document.createElement('div');
+    cleaner.className = 'cleaner';
+    cleaner.textContent = '🧹';
+    cleaner.style.left = startX + 'px';
+    cleaner.style.top = targetY + 'px';
+    cleaner.style.transform = fromLeft ? 'scaleX(1)' : 'scaleX(-1)';
+    dragLayer.appendChild(cleaner);
+
+    requestAnimationFrame(() => {
+      cleaner.classList.add('show');
+      requestAnimationFrame(() => { cleaner.style.left = targetX + 'px'; });
+    });
+
+    setTimeout(() => {
+      if (gameOver) { cleaner.remove(); return; }
+      if (target.isConnected && !target.dataset.dragging) {
+        target.remove();
+        spawnFxAt(targetX, targetY - 10, '💨回収された!');
+      }
+      cleaner.style.transform = fromLeft ? 'scaleX(-1)' : 'scaleX(1)';
+      cleaner.style.left = startX + 'px';
+      setTimeout(() => {
+        cleaner.classList.remove('show');
+        setTimeout(() => cleaner.remove(), 400);
+      }, EXIT_MS);
+    }, ENTER_MS);
+  }
+
+  function scheduleCleaner(){
+    if (gameOver) return;
+    const delay = 4000 + Math.random() * 4000;
+    cleanerTimeoutId = setTimeout(() => { trySpawnCleaner(); scheduleCleaner(); }, delay);
+  }
+
   // ---------- GAME FLOW ----------
   function clearAllSlotTimers(){
     [...grinderSlots, ...potSlots].forEach(s => { if (s.timer){ clearInterval(s.timer); s.timer = null; } });
   }
-
   function resetSlots(){
     grinderSlots.forEach(s => { s.state='empty'; s.remaining=0; renderGrinderSlot(s); });
     potSlots.forEach(s => { s.state='empty'; s.remaining=0; renderPotSlot(s); });
+  }
+  function clearDragLayer(){
+    dragLayer.querySelectorAll('.civet, .poop, .pour-fx, .drag-token, .cleaner').forEach(el => el.remove());
   }
 
   function startGame(){
@@ -637,10 +740,11 @@
 
     clearAllSlotTimers();
     resetSlots();
-    dragLayer.querySelectorAll('.civet, .poop, .pour-fx, .drag-token').forEach(el => el.remove());
+    clearDragLayer();
 
     if (timerIntervalId) clearInterval(timerIntervalId);
     if (spawnTimeoutId) clearTimeout(spawnTimeoutId);
+    if (cleanerTimeoutId) clearTimeout(cleanerTimeoutId);
 
     gameOver = false;
 
@@ -651,23 +755,45 @@
     }, 1000);
 
     scheduleSpawn();
+    scheduleCleaner();
   }
 
   function endGame(){
     gameOver = true;
     clearInterval(timerIntervalId);
     clearTimeout(spawnTimeoutId);
+    clearTimeout(cleanerTimeoutId);
     clearAllSlotTimers();
-    dragLayer.querySelectorAll('.civet, .poop').forEach(el => el.remove());
+    dragLayer.querySelectorAll('.civet, .poop, .cleaner').forEach(el => el.remove());
+
+    let isNewRecord = false;
+    if (score > highScore){
+      highScore = score;
+      isNewRecord = true;
+      saveHighScore(highScore);
+    }
     finalScoreEl.textContent = score;
+    updateHighScoreDisplays();
+    newRecordBadge.classList.toggle('hidden', !isNewRecord);
+
     overlay.classList.remove('hidden');
   }
 
+  function goToTop(){
+    overlay.classList.add('hidden');
+    clearAllSlotTimers();
+    resetSlots();
+    clearDragLayer();
+    updateHighScoreDisplays();
+    startScreen.classList.remove('hidden');
+  }
+
   startBtn.addEventListener('click', startGame);
-  restartBtn.addEventListener('click', startGame);
+  backToTopBtn.addEventListener('click', goToTop);
 
   // idle initial render (before start)
   resetSlots();
+  loadHighScore().then(v => { highScore = v; updateHighScoreDisplays(); });
 })();
 </script>
 </body>
